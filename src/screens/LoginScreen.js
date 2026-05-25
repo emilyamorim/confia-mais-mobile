@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; 
 import api from '../services/api';
-import LogoSvg from '../../assets/images/logotipo1.svg';
+import LogoSvg from '../../assets/images/logotipo-light.svg';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -129,7 +129,10 @@ export default function LoginScreen() {
             </View>
 
             {/* BOTÃO SECUNDÁRIO (CRIAR CONTA) */}
-            <TouchableOpacity style={styles.secondaryButton}>
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={() => router.push('/register')} // <- Esta é a linha mágica!
+            >
               <Text style={styles.secondaryButtonText}>Criar conta agora</Text>
               <Ionicons name="arrow-forward" size={18} color="#001F3F" style={styles.btnIcon} />
             </TouchableOpacity>
@@ -140,6 +143,7 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
