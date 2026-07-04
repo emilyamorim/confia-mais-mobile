@@ -3,11 +3,11 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, 
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
   ScrollView, SafeAreaView 
-} from 'react-native';
+, StatusBar} from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; 
 import api from '../services/api';
-import LogoSvg from '../../assets/images/logotipo.svg'; 
+import LogoSvg from '../../assets/images/logotipo1.svg'; 
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
@@ -83,13 +83,13 @@ export default function RegisterScreen() {
               <Ionicons name="arrow-back" size={24} color="#A0AEC0" />
             </TouchableOpacity>
 
-            <View style={styles.cardHeader}>
-              <View style={styles.logoCircle}>
-                 <LogoSvg width={28} height={28} /> 
+            <View style={styles.header}>
+              <View style={styles.logoContainer}>
+                  <LogoSvg width={45} height={45} /> 
               </View>
               <View style={styles.titleWrapper}>
-                <Text style={styles.title}>Cadastro</Text>
-                <Text style={styles.subtitle}>Crie sua conta no Confia+</Text>
+                  <Text style={styles.title}>Cadastro</Text>
+                  <Text style={styles.subtitle}>Crie sua conta no Confia+</Text>
               </View>
             </View>
 
@@ -199,26 +199,26 @@ export default function RegisterScreen() {
 
 // Estilos mantidos exatamente iguais para não quebrar o layout
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#001F3F' },
+  safeArea: { flex: 1, backgroundColor: '#003B73', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0  },
   container: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   card: {
-    backgroundColor: '#FFFFFF', width: '100%', maxWidth: 400, borderRadius: 24, 
-    padding: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, 
+    backgroundColor: '#FFFFFF', width: '100%', maxWidth: 400, borderRadius: 24,
+    padding: 30, paddingTop: 45, shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15, shadowRadius: 20, elevation: 10, position: 'relative'
   },
-  backButton: { position: 'absolute', top: 20, right: 20, zIndex: 10 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
-  logoCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  backButton: { position: 'absolute', top: 15, left: 15, zIndex: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
+  logoContainer: { justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   titleWrapper: { justifyContent: 'center' },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#001F3F' },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#003B73' },
   subtitle: { fontSize: 13, color: '#A0AEC0', marginTop: 2 },
   formGroup: { marginBottom: 15 },
-  label: { fontSize: 11, fontWeight: 'bold', color: '#001F3F', marginBottom: 8, letterSpacing: 0.5 },
+  label: { fontSize: 11, fontWeight: 'bold', color: '#003B73', marginBottom: 8, letterSpacing: 0.5 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, backgroundColor: '#FAFCFF', height: 50, paddingHorizontal: 15 },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, color: '#1A202C', fontSize: 15, height: '100%' },
   eyeIcon: { padding: 5 },
-  primaryButton: { backgroundColor: '#001F3F', height: 50, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 15 },
+  primaryButton: { backgroundColor: '#003B73', height: 50, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 15 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', letterSpacing: 0.5 }
 });

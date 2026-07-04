@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, StyleSheet, 
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
-  ScrollView, SafeAreaView, Image
+  ScrollView, SafeAreaView, Image, StatusBar
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; 
 import api from '../services/api';
-import LogoSvg from '../../assets/images/logotipo-light.svg';
+import LogoSvg from '../../assets/images/logotipo1.svg';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -53,18 +53,18 @@ export default function LoginScreen() {
           
           {/* CARD BRANCO CENTRALIZADO */}
           <View style={styles.card}>
-            
-            {/* CABEÇALHO DO CARD (Logo e Títulos) */}
-            <View style={styles.cardHeader}>
-            
-            <View style={styles.logoCircle}>
-                <LogoSvg width={28} height={28} /> 
-            </View>
-            
-            <View style={styles.titleWrapper}>
-                <Text style={styles.title}>Login</Text>
-                <Text style={styles.subtitle}>Bem-vindo de volta!</Text>
-            </View>
+            <TouchableOpacity onPress={() => router.back()} style={{position: 'absolute', top: 15, left: 15, zIndex: 10}}>
+              <Ionicons name="arrow-back" size={24} color="#A0AEC0" />
+            </TouchableOpacity>
+
+            <View style={styles.header}>
+              <View style={styles.logoContainer}>
+                  <LogoSvg width={45} height={45} /> 
+              </View>
+              <View style={styles.titleWrapper}>
+                  <Text style={styles.title}>Login</Text>
+                  <Text style={styles.subtitle}>Bem-vindo de volta!</Text>
+              </View>
             </View>
 
             {/* FORMULÁRIO */}
@@ -134,7 +134,7 @@ export default function LoginScreen() {
               onPress={() => router.push('/register')} // <- Esta é a linha mágica!
             >
               <Text style={styles.secondaryButtonText}>Criar conta agora</Text>
-              <Ionicons name="arrow-forward" size={18} color="#001F3F" style={styles.btnIcon} />
+              <Ionicons name="arrow-forward" size={18} color="#003B73" style={styles.btnIcon} />
             </TouchableOpacity>
 
           </View>
@@ -148,7 +148,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#001F3F', // Azul Escuro de fundo do site
+    backgroundColor: '#003B73', // Azul Escuro de fundo do site
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   },
   container: {
     flex: 1,
@@ -165,22 +166,20 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: 24, // Arredondamento idêntico ao do print
     padding: 30,
+    paddingTop: 45,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
+    position: 'relative'
   },
-  cardHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 35,
+    marginBottom: 30,
   },
-  logoCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#0D47A1', // Cor temporária da logo
+  logoContainer: {
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -191,8 +190,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#001F3F',
-    // fontFamily: 'serif', // Remova o comentário se quiser forçar fonte com serifa no Android
+    color: '#003B73',
   },
   subtitle: {
     fontSize: 14,
@@ -205,7 +203,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: '#001F3F',
+    color: '#003B73',
     marginBottom: 8,
     letterSpacing: 0.5, // Dá aquele ar espaçado nas letras maiúsculas
   },
@@ -241,7 +239,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   primaryButton: {
-    backgroundColor: '#001F3F', // Azul escuro do botão
+    backgroundColor: '#003B73', // Azul escuro do botão
     height: 50,
     borderRadius: 8,
     flexDirection: 'row',
@@ -285,7 +283,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#001F3F',
+    color: '#003B73',
     fontSize: 14,
     fontWeight: 'bold',
   }

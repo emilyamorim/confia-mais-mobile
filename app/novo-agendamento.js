@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
-  ActivityIndicator, Alert, ScrollView, FlatList
-} from 'react-native';
+  ActivityIndicator, Alert, ScrollView, FlatList, TextInput
+, Platform, StatusBar} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../src/services/api';
@@ -10,6 +10,15 @@ import api from '../src/services/api';
 export default function NovoAgendamentoScreen() {
   const [loading, setLoading] = useState(false);
   const [servicos, setServicos] = useState([]);
+  
+  // Estados Cliente
+  const [tipoCliente, setTipoCliente] = useState('cadastrado'); // 'cadastrado' ou 'avulso'
+  const [clientesCadastrados, setClientesCadastrados] = useState([]);
+  const [selectedClienteId, setSelectedClienteId] = useState(null);
+
+  const [nomeCliente, setNomeCliente] = useState('');
+  const [telefoneCliente, setTelefoneCliente] = useState('');
+  const [emailCliente, setEmailCliente] = useState('');
   
   // Estados de seleção
   const [selectedServico, setSelectedServico] = useState(null);
@@ -32,18 +41,22 @@ export default function NovoAgendamentoScreen() {
   };
   const diasDisponiveis = getNext14Days();
 
-  // 2. Busca os serviços disponíveis na API ao carregar o ecrã
+  // 2. Busca os serviços e clientes disponíveis na API ao carregar o ecrã
   useEffect(() => {
-    async function fetchServicos() {
+    async function fetchData() {
       try {
-        const response = await api.get('/api/servicos/');
-        setServicos(response.data);
+        const [resServicos, resClientes] = await Promise.all([
+          api.get('/api/servicos/'),
+          api.get('/api/auth/clientes/')
+        ]);
+        setServicos(resServicos.data);
+        setClientesCadastrados(resClientes.data);
       } catch (error) {
-        console.error("Erro ao buscar serviços:", error);
-        Alert.alert('Erro', 'Não foi possível carregar os serviços.');
+        console.error("Erro ao buscar dados iniciais:", error);
+        Alert.alert('Erro', 'Não foi possível carregar os dados iniciais.');
       }
     }
-    fetchServicos();
+    fetchData();
   }, []);
 
   // 3. Busca os horários livres sempre que o utilizador escolhe um serviço e um dia
@@ -62,6 +75,7 @@ export default function NovoAgendamentoScreen() {
 
       try {
         const response = await api.get(`/api/horarios/disponiveis/?data=${dataFormatada}&servico_id=${selectedServico}`);
+        setHorariosDisponiveis(response.data);
       } catch (error) {
         console.error("Erro ao buscar horários:", error);
         setHorariosDisponiveis([]);
@@ -89,19 +103,39 @@ export default function NovoAgendamentoScreen() {
     // Monta a string no formato ISO que o Django espera (YYYY-MM-DDTHH:MM:00)
     const dataHoraInicio = `${ano}-${mes}-${dia}T${selectedHorario}:00`;
 
+    const servicoObj = servicos.find(s => s.id === selectedServico);
+    const empreendedorId = servicoObj ? servicoObj.criado_por : null;
+
     try {
-      await api.post('/api/agendamentos/', {
-        servicos: [selectedServico], // O Django espera uma lista de IDs devido ao ManyToMany
+      const payload = {
+        servicos: [selectedServico],
+        empreendedor: empreendedorId,
         data_hora_inicio: dataHoraInicio,
         status: 'PENDENTE'
-      });
+      };
+
+      if (tipoCliente === 'cadastrado') {
+        if (!selectedClienteId) {
+          Alert.alert('Atenção', 'Por favor, selecione um cliente da lista.');
+          setLoading(false);
+          return;
+        }
+        payload.cliente = selectedClienteId;
+      } else {
+        payload.cliente_nome_avulso = nomeCliente.trim() !== '' ? nomeCliente.trim() : 'Cliente Avulso';
+        payload.cliente_telefone_avulso = telefoneCliente.trim();
+        payload.cliente_email_avulso = emailCliente.trim();
+      }
+
+      await api.post('/api/agendamentos/', payload);
 
       Alert.alert('Sucesso!', 'Agendamento registado com sucesso.', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
-      console.error(error);
-      Alert.alert('Erro', 'Ocorreu um erro ao tentar agendar. Tente novamente.');
+      console.error(error.response?.data || error.message);
+      const erroMsg = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      Alert.alert('Erro da API', `Detalhes: ${erroMsg}`);
     } finally {
       setLoading(false);
     }
@@ -125,9 +159,83 @@ export default function NovoAgendamentoScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* PASSO 1: DADOS DO CLIENTE */}
+        <Text style={styles.sectionTitle}>1. Cliente</Text>
         
-        {/* PASSO 1: ESCOLHER O SERVIÇO */}
-        <Text style={styles.sectionTitle}>1. Escolha o Serviço</Text>
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tabButton, tipoCliente === 'cadastrado' && styles.tabButtonActive]}
+            onPress={() => setTipoCliente('cadastrado')}
+          >
+            <Text style={[styles.tabButtonText, tipoCliente === 'cadastrado' && styles.tabButtonTextActive]}>Meus Clientes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tabButton, tipoCliente === 'avulso' && styles.tabButtonActive]}
+            onPress={() => setTipoCliente('avulso')}
+          >
+            <Text style={[styles.tabButtonText, tipoCliente === 'avulso' && styles.tabButtonTextActive]}>Avulso</Text>
+          </TouchableOpacity>
+        </View>
+
+        {tipoCliente === 'cadastrado' ? (
+          <View style={styles.clientesListContainer}>
+            {clientesCadastrados.length === 0 ? (
+              <Text style={styles.emptyText}>Nenhum cliente cadastrado.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+                {clientesCadastrados.map(c => (
+                  <TouchableOpacity 
+                    key={c.id} 
+                    style={[styles.clienteCard, selectedClienteId === c.id && styles.clienteCardActive]}
+                    onPress={() => setSelectedClienteId(c.id)}
+                  >
+                    <View style={styles.clienteAvatar}>
+                      <Text style={styles.clienteAvatarText}>{c.nome.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View>
+                      <Text style={[styles.clienteName, selectedClienteId === c.id && styles.clienteNameActive]}>
+                        {c.nome.split(' ')[0]}
+                      </Text>
+                      <Text style={[styles.clienteVisitas, selectedClienteId === c.id && styles.clienteVisitasActive]}>
+                        {c.visitas} visitas
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Nome (Ex: João da Silva)"
+              placeholderTextColor="#A0AEC0"
+              value={nomeCliente}
+              onChangeText={setNomeCliente}
+            />
+            <View style={{height: 10}} />
+            <TextInput
+              style={styles.input}
+              placeholder="Telefone (Opcional)"
+              placeholderTextColor="#A0AEC0"
+              keyboardType="phone-pad"
+              value={telefoneCliente}
+              onChangeText={setTelefoneCliente}
+            />
+            <View style={{height: 10}} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email (Opcional)"
+              placeholderTextColor="#A0AEC0"
+              keyboardType="email-address"
+              value={emailCliente}
+              onChangeText={setEmailCliente}
+            />
+          </View>
+        )}
+        {/* PASSO 2: ESCOLHER O SERVIÇO */}
+        <Text style={styles.sectionTitle}>2. Escolha o Serviço</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
           {servicos.length === 0 ? (
             <Text style={styles.emptyText}>Nenhum serviço disponível.</Text>
@@ -149,8 +257,8 @@ export default function NovoAgendamentoScreen() {
           )}
         </ScrollView>
 
-        {/* PASSO 2: ESCOLHER A DATA */}
-        <Text style={styles.sectionTitle}>2. Escolha o Dia</Text>
+        {/* PASSO 3: ESCOLHER A DATA */}
+        <Text style={styles.sectionTitle}>3. Escolha o Dia</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
           {diasDisponiveis.map((date, index) => {
             const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
@@ -171,8 +279,8 @@ export default function NovoAgendamentoScreen() {
           })}
         </ScrollView>
 
-        {/* PASSO 3: ESCOLHER O HORÁRIO */}
-        <Text style={styles.sectionTitle}>3. Escolha o Horário</Text>
+        {/* PASSO 4: ESCOLHER O HORÁRIO */}
+        <Text style={styles.sectionTitle}>4. Escolha o Horário</Text>
         {loadingHorarios ? (
           <ActivityIndicator size="small" color="#3182CE" style={{ marginTop: 20 }} />
         ) : (
@@ -222,7 +330,7 @@ export default function NovoAgendamentoScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#001F3F' },
+  safeArea: { flex: 1, backgroundColor: '#003B73', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0  },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 25 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
@@ -231,6 +339,25 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A202C', marginLeft: 20, marginBottom: 15, marginTop: 10 },
   horizontalScroll: { paddingHorizontal: 20, paddingBottom: 10 },
   emptyText: { color: '#A0AEC0', fontSize: 14, fontStyle: 'italic', marginLeft: 20 },
+  
+  // Input Nome & Abas
+  tabContainer: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 15 },
+  tabButton: { flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: '#E2E8F0', borderRadius: 8, marginHorizontal: 4 },
+  tabButtonActive: { backgroundColor: '#3182CE' },
+  tabButtonText: { color: '#4A5568', fontWeight: 'bold' },
+  tabButtonTextActive: { color: '#FFFFFF' },
+  clientesListContainer: { marginBottom: 10 },
+  clienteCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, marginRight: 15, borderWidth: 1, borderColor: '#E2E8F0', minWidth: 140 },
+  clienteCardActive: { backgroundColor: '#3182CE', borderColor: '#3182CE' },
+  clienteAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  clienteAvatarText: { color: '#1A202C', fontWeight: 'bold', fontSize: 16 },
+  clienteName: { fontSize: 14, fontWeight: 'bold', color: '#1A202C' },
+  clienteNameActive: { color: '#FFFFFF' },
+  clienteVisitas: { fontSize: 12, color: '#718096' },
+  clienteVisitasActive: { color: '#E2E8F0' },
+
+  inputContainer: { paddingHorizontal: 20, marginBottom: 10 },
+  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 15, paddingVertical: 12, fontSize: 15, color: '#1A202C' },
   
   // Cartões de Serviço
   cardSelect: { backgroundColor: '#FFFFFF', padding: 15, borderRadius: 12, marginRight: 15, width: 140, borderWidth: 1, borderColor: '#E2E8F0' },
