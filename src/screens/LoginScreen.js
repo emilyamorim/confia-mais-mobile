@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; 
 import api from '../services/api';
-import LogoSvg from '../../assets/images/logotipo1.svg';
+import LogoSvg from '../../assets/images/logotipo.svg';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');

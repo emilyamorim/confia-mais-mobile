@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
-  FlatList, ActivityIndicator, Alert, Linking
-, Platform, StatusBar} from 'react-native';
+  FlatList, ActivityIndicator, Alert, Linking, Platform, StatusBar, Modal
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../src/services/api';
@@ -10,6 +10,8 @@ import api from '../src/services/api';
 export default function FiadosScreen() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ inadimplentes: [], totalDevido: 0, quantidade: 0 });
+  const [modalVisible, setModalVisible] = useState(false);
+  const [itemSelecionado, setItemSelecionado] = useState(null);
 
   useEffect(() => {
     fetchInadimplentes();
@@ -28,29 +30,47 @@ export default function FiadosScreen() {
     }
   }
 
-  async function handleReceber(transacaoId, valorRestante, clienteNome) {
+  function openBaixaModal(item) {
+    setItemSelecionado(item);
+    setModalVisible(true);
+  }
+
+  async function handleReceber(formaPagamento) {
+    if (!itemSelecionado) return;
+    setModalVisible(false);
+    try {
+      const hoje = new Date().toISOString().split('T')[0];
+      await api.post('/api/pagamentos/', {
+        transacao: itemSelecionado.id,
+        valor: itemSelecionado.valor,
+        forma_pagamento: formaPagamento,
+        data_pagamento: hoje
+      });
+      Alert.alert('Sucesso', 'Pagamento registrado e dívida baixada!');
+      fetchInadimplentes();
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Não foi possível processar o pagamento.');
+    }
+  }
+
+  async function handleApagar(agendamentoId) {
     Alert.alert(
-      "Confirmar Recebimento",
-      `Receber R$ ${valorRestante.toFixed(2).replace('.', ',')} de ${clienteNome} via PIX?`,
+      'Apagar Dívida',
+      'Tem certeza que deseja apagar? O agendamento será excluído permanentemente.',
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: 'Cancelar', style: 'cancel' },
         { 
-          text: "Confirmar", 
+          text: 'Apagar', 
+          style: 'destructive',
           onPress: async () => {
             try {
-              // Obtém a data de hoje no formato YYYY-MM-DD
-              const hoje = new Date().toISOString().split('T')[0];
-              await api.post('/api/pagamentos/', {
-                transacao: transacaoId,
-                valor: valorRestante,
-                forma_pagamento: 'PIX',
-                data_pagamento: hoje
-              });
-              Alert.alert('Sucesso', 'Baixa realizada com sucesso!');
-              fetchInadimplentes(); // Recarrega a lista
+              await api.delete(`/api/agendamentos/${agendamentoId}/`);
+              Alert.alert('Sucesso', 'Pendência apagada com sucesso!');
+              fetchInadimplentes();
             } catch (error) {
               console.error(error);
-              Alert.alert('Erro', 'Não foi possível processar o pagamento.');
+              Alert.alert('Erro', 'Não foi possível apagar a pendência.');
             }
           }
         }
@@ -88,10 +108,16 @@ export default function FiadosScreen() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.btnReceber}
-          onPress={() => handleReceber(item.id, item.valor, item.cliente)}
+          onPress={() => openBaixaModal(item)}
         >
           <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
           <Text style={styles.btnText}>Dar Baixa</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.btnApagar}
+          onPress={() => handleApagar(item.agendamento_id)}
+        >
+          <Ionicons name="trash" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -131,6 +157,38 @@ export default function FiadosScreen() {
           />
         )}
       </View>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Forma de Pagamento</Text>
+            <Text style={styles.modalSubtitle}>Como {itemSelecionado?.cliente} realizou o pagamento?</Text>
+
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleReceber('PIX')}>
+              <Text style={styles.modalOptionText}>PIX</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleReceber('DINHEIRO')}>
+              <Text style={styles.modalOptionText}>Dinheiro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleReceber('CARTAO_CREDITO')}>
+              <Text style={styles.modalOptionText}>Cartão de Crédito</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleReceber('CARTAO_DEBITO')}>
+              <Text style={styles.modalOptionText}>Cartão de Débito</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -177,6 +235,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#003B73', 
     paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8, flex: 1, justifyContent: 'center' 
   },
+  btnApagar: { 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#E53E3E', 
+    paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8, marginLeft: 10, justifyContent: 'center' 
+  },
   btnText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', marginLeft: 5 },
-  emptyText: { textAlign: 'center', color: '#718096', marginTop: 50, fontSize: 16 }
+  emptyText: { textAlign: 'center', color: '#718096', marginTop: 50, fontSize: 16 },
+  modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 },
+  modalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#003B73', marginBottom: 5 },
+  modalSubtitle: { fontSize: 14, color: '#4A5568', marginBottom: 20, textAlign: 'center' },
+  modalOption: { width: '100%', padding: 15, backgroundColor: '#F4F7FE', borderRadius: 8, marginBottom: 10, alignItems: 'center' },
+  modalOptionText: { fontSize: 16, fontWeight: 'bold', color: '#003B73' },
+  modalCancel: { width: '100%', padding: 15, marginTop: 10, alignItems: 'center' },
+  modalCancelText: { fontSize: 16, color: '#A0AEC0', fontWeight: 'bold' }
 });
